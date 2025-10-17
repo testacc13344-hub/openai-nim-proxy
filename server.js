@@ -7,7 +7,6 @@ app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
   // Handle preflight requests
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -35,14 +34,13 @@ app.post('/v1/chat/completions', async (req, res) => {
   try {
     // Extract OpenAI format request
     const { model, messages, temperature, max_tokens, stream } = req.body;
-
     console.log(`Request received for model: ${model}`);
 
     // Prepare NVIDIA API request
     const nvidiaRequest = {
       model: model || 'deepseek-ai/deepseek-r1-0528',
       messages: messages,
-      temperature: temperature || 1.1,
+      temperature: temperature || 0.7,
       max_tokens: max_tokens || 4096,
       stream: stream || false
     };
@@ -63,6 +61,8 @@ app.post('/v1/chat/completions', async (req, res) => {
     // Return response in OpenAI format
     if (stream) {
       res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
       response.data.pipe(res);
     } else {
       res.json(response.data);
@@ -104,5 +104,3 @@ app.listen(PORT, () => {
   console.log(`Proxy server running on port ${PORT}`);
   console.log(`NVIDIA API Key configured: ${NVIDIA_API_KEY ? 'Yes' : 'No'}`);
 });
-
-
