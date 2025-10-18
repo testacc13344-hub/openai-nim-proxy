@@ -1,7 +1,6 @@
 const express = require('express');
 const axios = require('axios');
 const app = express();
-
 // CORS middleware - MUST be before other middleware
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
@@ -13,13 +12,10 @@ app.use((req, res, next) => {
   }
   next();
 });
-
 app.use(express.json());
-
 const PORT = process.env.PORT || 3000;
 const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY;
 const NVIDIA_BASE_URL = 'https://integrate.api.nvidia.com/v1';
-
 // Health check endpoint
 app.get('/', (req, res) => {
   res.json({
@@ -28,13 +24,32 @@ app.get('/', (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
-
 // OpenAI-compatible chat completions endpoint
 app.post('/v1/chat/completions', async (req, res) => {
   try {
+    // Check if API key is configured
+    if (!NVIDIA_API_KEY) {
+      return res.status(500).json({
+        error: {
+          message: 'NVIDIA_API_KEY environment variable is not set',
+          type: 'configuration_error'
+        }
+      });
+    }
+
     // Extract OpenAI format request
     const { model, messages, temperature, max_tokens, stream } = req.body;
     console.log(`Request received for model: ${model}`);
+    
+    // Validate required fields
+    if (!messages || !Array.isArray(messages)) {
+      return res.status(400).json({
+        error: {
+          message: 'messages field is required and must be an array',
+          type: 'invalid_request_error'
+        }
+      });
+    }
 
     // Prepare NVIDIA API request
     const nvidiaRequest = {
@@ -44,7 +59,6 @@ app.post('/v1/chat/completions', async (req, res) => {
       max_tokens: max_tokens || 4096,
       stream: stream || false
     };
-
     // Make request to NVIDIA API
     const response = await axios.post(
       `${NVIDIA_BASE_URL}/chat/completions`,
@@ -57,7 +71,6 @@ app.post('/v1/chat/completions', async (req, res) => {
         responseType: stream ? 'stream' : 'json'
       }
     );
-
     // Return response in OpenAI format
     if (stream) {
       res.setHeader('Content-Type', 'text/event-stream');
@@ -78,7 +91,6 @@ app.post('/v1/chat/completions', async (req, res) => {
     });
   }
 });
-
 // Models endpoint (for compatibility)
 app.get('/v1/models', (req, res) => {
   res.json({
@@ -99,7 +111,6 @@ app.get('/v1/models', (req, res) => {
     ]
   });
 });
-
 app.listen(PORT, () => {
   console.log(`Proxy server running on port ${PORT}`);
   console.log(`NVIDIA API Key configured: ${NVIDIA_API_KEY ? 'Yes' : 'No'}`);
